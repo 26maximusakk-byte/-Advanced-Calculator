@@ -1,1 +1,105 @@
+use std::io::{self, Write};
+use std::f64::consts;
 
+fn main() {
+    let mut history: Vec<String> = Vec::new();
+    println!("\x1b[95m╔════════════════════════════════════╗\x1b[0m");
+    println!("\x1b[95m║     Advanced Calculator (Rust)    ║\x1b[0m");
+    println!("\x1b[95m╚════════════════════════════════════╝\x1b[0m");
+    println!("Commands: + - * /, sin(), cos(), tan(), sqrt(), log(), ln(), ^, exit, history");
+    loop {
+        print!("\x1b[36m> \x1b[0m");
+        io::stdout().flush().unwrap();
+        let mut input = String::new();
+        io::stdin().read_line(&mut input).unwrap();
+        let input = input.trim();
+        if input == "exit" { break; }
+        if input == "history" {
+            for (i, h) in history.iter().enumerate() {
+                println!("{}: {}", i+1, h);
+            }
+            continue;
+        }
+        match evaluate(input) {
+            Ok(result) => {
+                println!("\x1b[32mResult: {}\x1b[0m", result);
+                history.push(format!("{} = {}", input, result));
+                if history.len() > 20 { history.remove(0); }
+            },
+            Err(e) => println!("\x1b[31mError: {}\x1b[0m", e),
+        }
+    }
+}
+
+fn evaluate(expr: &str) -> Result<f64, String> {
+    let expr = expr.replace(" ", "");
+    let expr = expr.replace("^", "**");
+    eval_expr(&expr)
+}
+
+fn eval_expr(expr: &str) -> Result<f64, String> {
+    // Сначала ищем + и - (низший приоритет)
+    let mut idx = expr.len();
+    let mut op = None;
+    for (i, c) in expr.chars().enumerate() {
+        if (c == '+' || c == '-') && i > 0 {
+            idx = i;
+            op = Some(c);
+            break;
+        }
+    }
+    if let Some(op) = op {
+        let left = eval_expr(&expr[..idx])?;
+        let right = eval_expr(&expr[idx+1..])?;
+        return Ok(if op == '+' { left + right } else { left - right });
+    }
+    // Умножение и деление
+    let mut idx = expr.len();
+    let mut op = None;
+    for (i, c) in expr.chars().enumerate() {
+        if (c == '*' || c == '/') && i > 0 {
+            idx = i;
+            op = Some(c);
+            break;
+        }
+    }
+    if let Some(op) = op {
+        let left = eval_expr(&expr[..idx])?;
+        let right = eval_expr(&expr[idx+1..])?;
+        if op == '/' && right == 0.0 { return Err("division by zero".to_string()); }
+        return Ok(if op == '*' { left * right } else { left / right });
+    }
+    // Функции
+    if expr.starts_with("sqrt(") && expr.ends_with(')') {
+        let inner = eval_expr(&expr[5..expr.len()-1])?;
+        return Ok(inner.sqrt());
+    }
+    if expr.starts_with("sin(") && expr.ends_with(')') {
+        let inner = eval_expr(&expr[4..expr.len()-1])?;
+        return Ok(inner.sin());
+    }
+    if expr.starts_with("cos(") && expr.ends_with(')') {
+        let inner = eval_expr(&expr[4..expr.len()-1])?;
+        return Ok(inner.cos());
+    }
+    if expr.starts_with("tan(") && expr.ends_with(')') {
+        let inner = eval_expr(&expr[4..expr.len()-1])?;
+        return Ok(inner.tan());
+    }
+    if expr.starts_with("log(") && expr.ends_with(')') {
+        let inner = eval_expr(&expr[4..expr.len()-1])?;
+        return Ok(inner.log10());
+    }
+    if expr.starts_with("ln(") && expr.ends_with(')') {
+        let inner = eval_expr(&expr[3..expr.len()-1])?;
+        return Ok(inner.ln());
+    }
+    // Степень
+    if let Some(idx) = expr.find("**") {
+        let left = eval_expr(&expr[..idx])?;
+        let right = eval_expr(&expr[idx+2..])?;
+        return Ok(left.powf(right));
+    }
+    // Число с плавающей точкой
+    expr.parse::<f64>().map_err(|_| format!("Invalid expression: {}", expr))
+}
