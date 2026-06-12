@@ -1,0 +1,119 @@
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Windows.Forms;
+
+namespace SuperCalculator
+{
+    public partial class MainForm : Form
+    {
+        private string expression = "";
+        private List<string> history = new List<string>();
+        private bool isDark = true;
+        private TextBox display;
+        private ListBox historyBox;
+
+        public MainForm()
+        {
+            InitializeComponent();
+            LoadHistory();
+            ApplyTheme();
+            this.KeyPreview = true;
+            this.KeyDown += (s, e) => {
+                if (e.KeyCode == Keys.Enter) Calculate();
+                if (e.KeyCode == Keys.Escape) Clear();
+                if (e.KeyCode == Keys.Back) Backspace();
+            };
+        }
+
+        private void InitializeComponent()
+        {
+            this.Text = "Super Calculator (C#)";
+            this.Size = new Size(450, 600);
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.BackColor = Color.FromArgb(45,45,45);
+
+            display = new TextBox { Font = new Font("Consolas", 20), Dock = DockStyle.Top, Height = 45, TextAlign = HorizontalAlignment.Right, ReadOnly = true };
+            historyBox = new ListBox { Dock = DockStyle.Top, Height = 120 };
+            var buttonPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, Padding = new Padding(5) };
+            string[] btns = { "7","8","9","/","C","4","5","6","*","√","1","2","3","-","^","0",".","=","+","sin","cos","tan","log","ln","⌫" };
+            foreach (var btnText in btns)
+            {
+                var btn = new Button { Text = btnText, Width = 70, Height = 50, Font = new Font("Segoe UI", 12) };
+                btn.Click += (s, e) => OnButtonClick(btnText);
+                buttonPanel.Controls.Add(btn);
+            }
+            var bottomPanel = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 40 };
+            var themeBtn = new Button { Text = "🌓 Toggle Theme", Width = 150 };
+            themeBtn.Click += (s, e) => ToggleTheme();
+            var copyBtn = new Button { Text = "📋 Copy", Width = 100 };
+            copyBtn.Click += (s, e) => CopyResult();
+            bottomPanel.Controls.Add(themeBtn);
+            bottomPanel.Controls.Add(copyBtn);
+
+            Controls.Add(buttonPanel);
+            Controls.Add(historyBox);
+            Controls.Add(display);
+            Controls.Add(bottomPanel);
+        }
+
+        private void OnButtonClick(string key)
+        {
+            switch (key)
+            {
+                case "C": Clear(); break;
+                case "⌫": Backspace(); break;
+                case "=": Calculate(); break;
+                case "√": expression += "sqrt("; break;
+                case "^": expression += "^"; break;
+                case "sin": expression += "sin("; break;
+                case "cos": expression += "cos("; break;
+                case "tan": expression += "tan("; break;
+                case "log": expression += "log10("; break;
+                case "ln": expression += "log("; break;
+                default: expression += key; break;
+            }
+            display.Text = string.IsNullOrEmpty(expression) ? "0" : expression;
+        }
+
+        private void Calculate()
+        {
+            try
+            {
+                string expr = expression.Replace("^", "**").Replace("sqrt", "Math.Sqrt").Replace("sin", "Math.Sin").Replace("cos", "Math.Cos").Replace("tan", "Math.Tan").Replace("log10", "Math.Log10").Replace("log", "Math.Log");
+                var result = new DataTable().Compute(expr, null);
+                expression = result.ToString();
+                display.Text = expression;
+                history.Add($"{expr} = {result}");
+                if (history.Count > 20) history.RemoveAt(0);
+                SaveHistory();
+                UpdateHistory();
+            }
+            catch { display.Text = "Error"; expression = ""; }
+        }
+
+        private void Clear() { expression = ""; display.Text = "0"; }
+        private void Backspace() { if (expression.Length > 0) expression = expression.Remove(expression.Length-1); display.Text = expression == "" ? "0" : expression; }
+        private void UpdateHistory() { historyBox.DataSource = null; historyBox.DataSource = history.ToList(); }
+        private void LoadHistory() { /* просто для демо */ }
+        private void SaveHistory() { }
+        private void ToggleTheme() { isDark = !isDark; ApplyTheme(); }
+        private void ApplyTheme()
+        {
+            this.BackColor = isDark ? Color.FromArgb(45,45,45) : Color.WhiteSmoke;
+            display.BackColor = isDark ? Color.Black : Color.White;
+            display.ForeColor = isDark ? Color.Lime : Color.Black;
+            historyBox.BackColor = isDark ? Color.FromArgb(30,30,30) : Color.LightGray;
+            historyBox.ForeColor = isDark ? Color.White : Color.Black;
+        }
+        private void CopyResult() { Clipboard.SetText(display.Text); MessageBox.Show("Copied!"); }
+    }
+
+    static class Program
+    {
+        [STAThread]
+        static void Main() { Application.EnableVisualStyles(); Application.Run(new MainForm()); }
+    }
+}
