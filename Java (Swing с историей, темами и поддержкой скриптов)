@@ -1,0 +1,116 @@
+import javax.swing.*;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptEngine;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.ArrayList;
+
+public class Calculator extends JFrame {
+    private JTextField display;
+    private JTextArea historyArea;
+    private ArrayList<String> history = new ArrayList<>();
+    private String expression = "";
+    private boolean darkTheme = true;
+    private ScriptEngine engine;
+
+    public Calculator() {
+        setTitle("Super Calculator (Java)");
+        setSize(480, 650);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
+        
+        engine = new ScriptEngineManager().getEngineByName("JavaScript");
+        
+        display = new JTextField("0");
+        display.setFont(new Font("Consolas", Font.BOLD, 24));
+        display.setHorizontalAlignment(JTextField.RIGHT);
+        display.setEditable(false);
+        add(display, BorderLayout.NORTH);
+        
+        historyArea = new JTextArea(8, 30);
+        historyArea.setEditable(false);
+        historyArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        add(new JScrollPane(historyArea), BorderLayout.CENTER);
+        
+        JPanel buttonPanel = new JPanel(new GridLayout(5, 5, 5, 5));
+        String[] btns = {"7","8","9","/","C","4","5","6","*","√","1","2","3","-","^","0",".","=","+","sin","cos","tan","log","ln","⌫"};
+        for (String txt : btns) {
+            JButton btn = new JButton(txt);
+            btn.setFont(new Font("Segoe UI", Font.BOLD, 16));
+            btn.addActionListener(e -> onButtonClick(txt));
+            buttonPanel.add(btn);
+        }
+        add(buttonPanel, BorderLayout.SOUTH);
+        
+        JPanel bottom = new JPanel(new FlowLayout());
+        JButton themeBtn = new JButton("🌓 Toggle Theme");
+        themeBtn.addActionListener(e -> toggleTheme());
+        JButton copyBtn = new JButton("📋 Copy Result");
+        copyBtn.addActionListener(e -> copyResult());
+        bottom.add(themeBtn);
+        bottom.add(copyBtn);
+        add(bottom, BorderLayout.NORTH);
+        
+        applyTheme();
+        setVisible(true);
+    }
+    
+    private void onButtonClick(String key) {
+        switch (key) {
+            case "C": expression = ""; break;
+            case "⌫": if (!expression.isEmpty()) expression = expression.substring(0, expression.length()-1); break;
+            case "=": calculate(); break;
+            case "√": expression += "Math.sqrt("; break;
+            case "^": expression += "**"; break;
+            case "sin": case "cos": case "tan": expression += "Math." + key + "("; break;
+            case "log": expression += "Math.log10("; break;
+            case "ln": expression += "Math.log("; break;
+            default: expression += key; break;
+        }
+        display.setText(expression.isEmpty() ? "0" : expression);
+    }
+    
+    private void calculate() {
+        try {
+            String expr = expression.replace("^", "**");
+            Object result = engine.eval(expr);
+            expression = result.toString();
+            display.setText(expression);
+            history.add(expr + " = " + result);
+            if (history.size() > 20) history.remove(0);
+            updateHistory();
+        } catch (Exception ex) {
+            display.setText("Error");
+            expression = "";
+        }
+    }
+    
+    private void updateHistory() {
+        historyArea.setText("");
+        for (String h : history) historyArea.append(h + "\n");
+    }
+    
+    private void toggleTheme() {
+        darkTheme = !darkTheme;
+        applyTheme();
+    }
+    
+    private void applyTheme() {
+        Color bg = darkTheme ? new Color(45,45,45) : Color.WHITE;
+        Color fg = darkTheme ? Color.WHITE : Color.BLACK;
+        getContentPane().setBackground(bg);
+        display.setBackground(bg);
+        display.setForeground(fg);
+        historyArea.setBackground(bg);
+        historyArea.setForeground(fg);
+    }
+    
+    private void copyResult() {
+        Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(display.getText()), null);
+        JOptionPane.showMessageDialog(this, "Copied!");
+    }
+    
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(Calculator::new);
+    }
+}
