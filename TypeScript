@@ -1,0 +1,111 @@
+import * as math from 'mathjs';
+
+class SuperCalculatorWeb {
+    private expression: string = '';
+    private history: string[] = [];
+    private theme: 'dark' | 'light' = 'dark';
+    private displayEl: HTMLInputElement;
+    private historyEl: HTMLDivElement;
+
+    constructor() {
+        this.loadHistory();
+        this.createUI();
+        this.bindEvents();
+        this.applyTheme();
+    }
+
+    private loadHistory(): void {
+        const saved = localStorage.getItem('calc_history_ts');
+        if (saved) this.history = JSON.parse(saved);
+    }
+
+    private saveHistory(): void {
+        localStorage.setItem('calc_history_ts', JSON.stringify(this.history.slice(-20)));
+    }
+
+    private createUI(): void {
+        document.body.innerHTML = `
+            <div class="calc-container" style="max-width:450px; margin:50px auto; font-family:monospace;">
+                <input id="display" style="width:100%; font-size:28px; text-align:right; padding:10px; margin-bottom:10px;" value="0" readonly />
+                <div id="history" style="height:120px; overflow-y:auto; border:1px solid #555; margin-bottom:10px; padding:5px; font-size:12px;"></div>
+                <div class="buttons" style="display:grid; grid-template-columns:repeat(5,1fr); gap:8px;">
+                    ${['7','8','9','/','C','4','5','6','*','√','1','2','3','-','^','0','.','=','+','sin','cos','tan','log','ln','⌫'].map(b => `<button data-key="${b}" style="padding:15px; font-size:18px;">${b}</button>`).join('')}
+                </div>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button id="themeBtn" style="flex:1; padding:10px;">🌓 Theme</button>
+                    <button id="copyBtn" style="flex:1; padding:10px;">📋 Copy</button>
+                </div>
+            </div>
+        `;
+        this.displayEl = document.getElementById('display') as HTMLInputElement;
+        this.historyEl = document.getElementById('history') as HTMLDivElement;
+        this.updateHistoryDisplay();
+        document.querySelectorAll('button[data-key]').forEach(btn => {
+            btn.addEventListener('click', () => this.onButtonClick(btn.getAttribute('data-key')!));
+        });
+        document.getElementById('themeBtn')!.addEventListener('click', () => this.toggleTheme());
+        document.getElementById('copyBtn')!.addEventListener('click', () => this.copyResult());
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') this.calculate();
+            if (e.key === 'Escape') this.clear();
+            if (e.key === 'Backspace') this.backspace();
+        });
+    }
+
+    private onButtonClick(key: string): void {
+        if (key === 'C') this.clear();
+        else if (key === '⌫') this.backspace();
+        else if (key === '=') this.calculate();
+        else if (key === '√') this.expression += 'sqrt(';
+        else if (key === '^') this.expression += '^';
+        else if (['sin','cos','tan','log','ln'].includes(key)) this.expression += `${key}(`;
+        else this.expression += key;
+        this.updateDisplay();
+    }
+
+    private calculate(): void {
+        try {
+            let expr = this.expression.replace(/sqrt/g, 'sqrt').replace(/\^/g, '^');
+            let result = math.evaluate(expr);
+            this.expression = result.toString();
+            this.updateDisplay();
+            this.history.push(`${expr} = ${result}`);
+            this.saveHistory();
+            this.updateHistoryDisplay();
+        } catch (err) {
+            this.displayEl.value = 'Error';
+            this.expression = '';
+        }
+    }
+
+    private clear(): void { this.expression = ''; this.updateDisplay(); }
+    private backspace(): void { this.expression = this.expression.slice(0, -1); this.updateDisplay(); }
+    private updateDisplay(): void { this.displayEl.value = this.expression || '0'; }
+    private updateHistoryDisplay(): void {
+        this.historyEl.innerHTML = this.history.slice(-10).map(h => `<div>${h}</div>`).join('');
+    }
+    private toggleTheme(): void {
+        this.theme = this.theme === 'dark' ? 'light' : 'dark';
+        this.applyTheme();
+    }
+    private applyTheme(): void {
+        const bg = this.theme === 'dark' ? '#1e1e2e' : '#ffffff';
+        const fg = this.theme === 'dark' ? '#cdd6f4' : '#000000';
+        const btnBg = this.theme === 'dark' ? '#313244' : '#e0e0e0';
+        document.body.style.backgroundColor = bg;
+        document.body.style.color = fg;
+        const container = document.querySelector('.calc-container') as HTMLElement;
+        if (container) container.style.backgroundColor = bg;
+        document.querySelectorAll('button').forEach(btn => { btn.style.backgroundColor = btnBg; btn.style.color = fg; });
+        this.displayEl.style.backgroundColor = bg;
+        this.displayEl.style.color = fg;
+        this.historyEl.style.backgroundColor = bg;
+        this.historyEl.style.color = fg;
+    }
+    private copyResult(): void {
+        navigator.clipboard.writeText(this.displayEl.value);
+        alert('Copied to clipboard!');
+    }
+}
+
+new SuperCalculatorWeb();
