@@ -1,0 +1,31 @@
+const readline = require('readline');
+const math = require('mathjs');
+
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+let history = [];
+
+console.log('\x1b[95m╔════════════════════════════════════╗\x1b[0m');
+console.log('\x1b[95m║   Advanced Calculator (Node.js)   ║\x1b[0m');
+console.log('\x1b[95m╚════════════════════════════════════╝\x1b[0m');
+console.log('Enter expression (sin, cos, tan, log, ln, sqrt, ^), "history", "exit"');
+
+function prompt() {
+    rl.question('\x1b[36m> \x1b[0m', (input) => {
+        if (input === 'exit') return rl.close();
+        if (input === 'history') {
+            history.forEach((h, i) => console.log(`${i+1}: ${h}`));
+            return prompt();
+        }
+        try {
+            let result = math.evaluate(input);
+            console.log(`\x1b[32mResult: ${result}\x1b[0m`);
+            history.push(`${input} = ${result}`);
+            if (history.length > 20) history.shift();
+        } catch (err) {
+            console.log('\x1b[31mError: ' + err.message + '\x1b[0m');
+        }
+        prompt();
+    });
+}
+
+prompt();
