@@ -1,0 +1,140 @@
+package main
+
+import (
+    "bufio"
+    "fmt"
+    "math"
+    "os"
+    "strconv"
+    "strings"
+)
+
+var history []string
+
+func main() {
+    reader := bufio.NewReader(os.Stdin)
+    fmt.Println("\033[95m╔════════════════════════════════════╗\033[0m")
+    fmt.Println("\033[95m║     Advanced Calculator (Go)      ║\033[0m")
+    fmt.Println("\033[95m╚════════════════════════════════════╝\033[0m")
+    fmt.Println("Commands: + - * /, sin, cos, tan, sqrt, log, ln, ^, exit, history")
+    for {
+        fmt.Print("\033[36m> \033[0m")
+        input, _ := reader.ReadString('\n')
+        input = strings.TrimSpace(input)
+        if input == "exit" {
+            break
+        }
+        if input == "history" {
+            for i, h := range history {
+                fmt.Printf("%d: %s\n", i+1, h)
+            }
+            continue
+        }
+        result, err := evaluate(input)
+        if err != nil {
+            fmt.Println("\033[31mError:\033[0m", err)
+        } else {
+            fmt.Printf("\033[32mResult: %v\033[0m\n", result)
+            history = append(history, fmt.Sprintf("%s = %v", input, result))
+            if len(history) > 20 {
+                history = history[1:]
+            }
+        }
+    }
+}
+
+func evaluate(expr string) (float64, error) {
+    expr = strings.ReplaceAll(expr, " ", "")
+    expr = strings.ReplaceAll(expr, "^", "**")
+    // Простой рекурсивный парсер для базовых операций
+    // Сначала ищем + и - на верхнем уровне
+    if idx := strings.LastIndexAny(expr, "+-"); idx > 0 && (expr[idx] == '+' || expr[idx] == '-') {
+        left, err := evaluate(expr[:idx])
+        if err != nil {
+            return 0, err
+        }
+        right, err := evaluate(expr[idx+1:])
+        if err != nil {
+            return 0, err
+        }
+        if expr[idx] == '+' {
+            return left + right, nil
+        }
+        return left - right, nil
+    }
+    // Умножение и деление
+    if idx := strings.LastIndexAny(expr, "*/"); idx > 0 && (expr[idx] == '*' || expr[idx] == '/') {
+        left, err := evaluate(expr[:idx])
+        if err != nil {
+            return 0, err
+        }
+        right, err := evaluate(expr[idx+1:])
+        if err != nil {
+            return 0, err
+        }
+        if expr[idx] == '*' {
+            return left * right, nil
+        }
+        if right == 0 {
+            return 0, fmt.Errorf("division by zero")
+        }
+        return left / right, nil
+    }
+    // Функции
+    if strings.HasPrefix(expr, "sqrt(") && strings.HasSuffix(expr, ")") {
+        inner, err := evaluate(expr[5 : len(expr)-1])
+        if err != nil {
+            return 0, err
+        }
+        return math.Sqrt(inner), nil
+    }
+    if strings.HasPrefix(expr, "sin(") && strings.HasSuffix(expr, ")") {
+        inner, err := evaluate(expr[4 : len(expr)-1])
+        if err != nil {
+            return 0, err
+        }
+        return math.Sin(inner), nil
+    }
+    if strings.HasPrefix(expr, "cos(") && strings.HasSuffix(expr, ")") {
+        inner, err := evaluate(expr[4 : len(expr)-1])
+        if err != nil {
+            return 0, err
+        }
+        return math.Cos(inner), nil
+    }
+    if strings.HasPrefix(expr, "tan(") && strings.HasSuffix(expr, ")") {
+        inner, err := evaluate(expr[4 : len(expr)-1])
+        if err != nil {
+            return 0, err
+        }
+        return math.Tan(inner), nil
+    }
+    if strings.HasPrefix(expr, "log(") && strings.HasSuffix(expr, ")") {
+        inner, err := evaluate(expr[4 : len(expr)-1])
+        if err != nil {
+            return 0, err
+        }
+        return math.Log10(inner), nil
+    }
+    if strings.HasPrefix(expr, "ln(") && strings.HasSuffix(expr, ")") {
+        inner, err := evaluate(expr[3 : len(expr)-1])
+        if err != nil {
+            return 0, err
+        }
+        return math.Log(inner), nil
+    }
+    // Степень
+    if idx := strings.Index(expr, "**"); idx > 0 {
+        left, err := evaluate(expr[:idx])
+        if err != nil {
+            return 0, err
+        }
+        right, err := evaluate(expr[idx+2:])
+        if err != nil {
+            return 0, err
+        }
+        return math.Pow(left, right), nil
+    }
+    // Число
+    return strconv.ParseFloat(expr, 64)
+}
